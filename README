@@ -1,0 +1,30 @@
+
+CROSS_COMPILE:
+https://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/
+Code:
+https://ftp.denx.de/pub/u-boot/
+
+tar -xvf gcc-linaro-6.3.1-2017.05-i686_arm-linux-gnueabihf.tar.xz
+
+vim ~/.bashrc
+
+
+export PATH=/home/luoorshi/work/tools/6.3.1/bin:$PATH
+export GCC_COLORS=auto
+
+以下路径为解压后的路径
+其中6.3.1为解压后修改的文件名
+
+该项目编译H3芯片，可以编译orangepi_zero_plus2_h3_defconfig
+以orangepi 为例编译命令为
+首先清除编译
+make clean
+然后设在编译
+make orangepi_zero_plus2_h3_defconfig ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf-
+最后开始编译
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j4
+
+编译完成后会生成文件：u-boot-sunxi-with-spl.bin
+
+将文件下载到内存卡内即可启动
+
