@@ -1,3 +1,18 @@
 {
     "makefile.extensionOutputFolder": "./.vscode"
+    "files.exclude": {
+        "**/.git": true,
+        "**/.svn": true,
+        "**/.hg": true,
+        "**/CVS": true,
+        "**/.DS_Store": true,
+        "**/Thumbs.db": true
+
+        "**/*.cmd": true
+        "**/*.tmp": true
+        "**/*.dtb": true
+        "**/[a-r]*.dts*": true
+        "**/s[0-t]*.dts*": true
+        "**/[t-z]*.dts*": true
+    }
 }
