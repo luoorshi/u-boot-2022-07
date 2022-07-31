@@ -724,29 +724,34 @@ static int do_usb(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
 	return CMD_RET_USAGE;
 #endif /* CONFIG_USB_STORAGE */
 }
-
-U_BOOT_CMD(
-	usb,	5,	1,	do_usb,
-	"USB sub-system",
-	"start - start (scan) USB controller\n"
-	"usb reset - reset (rescan) USB controller\n"
-	"usb stop [f] - stop USB [f]=force stop\n"
-	"usb tree - show USB device tree\n"
-	"usb info [dev] - show available USB devices\n"
-	"usb test [dev] [port] [mode] - set USB 2.0 test mode\n"
-	"    (specify port 0 to indicate the device's upstream port)\n"
-	"    Available modes: J, K, S[E0_NAK], P[acket], F[orce_Enable]\n"
-#ifdef CONFIG_USB_STORAGE
-	"usb storage - show details of USB storage devices\n"
-	"usb dev [dev] - show or set current USB storage device\n"
-	"usb part [dev] - print partition table of one or all USB storage"
-	"    devices\n"
-	"usb read addr blk# cnt - read `cnt' blocks starting at block `blk#'\n"
-	"    to memory address `addr'\n"
-	"usb write addr blk# cnt - write `cnt' blocks starting at block `blk#'\n"
-	"    from memory address `addr'"
-#endif /* CONFIG_USB_STORAGE */
-);
+/************************** 
+加快启动速度，去掉USB扫描
+编译会有警告：
+cmd/usb.c:629:12: warning: ‘do_usb’ defined but not used [-Wunused-function]
+ static int do_usb(struct cmd_tbl *cmdtp, int flag, int argc, char *const argv[])
+**************************/
+// U_BOOT_CMD(
+// 	usb,	5,	1,	do_usb,
+// 	"USB sub-system",
+// 	"start - start (scan) USB controller\n"
+// 	"usb reset - reset (rescan) USB controller\n"
+// 	"usb stop [f] - stop USB [f]=force stop\n"
+// 	"usb tree - show USB device tree\n"
+// 	"usb info [dev] - show available USB devices\n"
+// 	"usb test [dev] [port] [mode] - set USB 2.0 test mode\n"
+// 	"    (specify port 0 to indicate the device's upstream port)\n"
+// 	"    Available modes: J, K, S[E0_NAK], P[acket], F[orce_Enable]\n"
+// #ifdef CONFIG_USB_STORAGE
+// 	"usb storage - show details of USB storage devices\n"
+// 	"usb dev [dev] - show or set current USB storage device\n"
+// 	"usb part [dev] - print partition table of one or all USB storage"
+// 	"    devices\n"
+// 	"usb read addr blk# cnt - read `cnt' blocks starting at block `blk#'\n"
+// 	"    to memory address `addr'\n"
+// 	"usb write addr blk# cnt - write `cnt' blocks starting at block `blk#'\n"
+// 	"    from memory address `addr'"
+// #endif /* CONFIG_USB_STORAGE */
+// );
 
 
 #ifdef CONFIG_USB_STORAGE
