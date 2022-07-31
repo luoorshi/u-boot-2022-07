@@ -14,5 +14,11 @@
         "**/[a-r]*.dts*": true
         "**/s[0-t]*.dts*": true
         "**/[t-z]*.dts*": true
+
+        "*/board/[0-e]*": true
+        "*/board/[g-r]*": true
+        "*/board/s[0-t]*": true
+        "*/board/s[v-z]*": true
+        "*/board/[t-z]*": true
     }
 }
