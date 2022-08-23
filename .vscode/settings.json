@@ -1,24 +1,57 @@
 {
-    "makefile.extensionOutputFolder": "./.vscode"
+    "makefile.extensionOutputFolder": "./.vscode",
+
     "files.exclude": {
         "**/.git": true,
         "**/.svn": true,
         "**/.hg": true,
         "**/CVS": true,
         "**/.DS_Store": true,
-        "**/Thumbs.db": true
+        "**/Thumbs.db": true,
 
-        "**/*.cmd": true
-        "**/*.tmp": true
-        "**/*.dtb": true
-        "**/[a-r]*.dts*": true
-        "**/s[0-t]*.dts*": true
-        "**/[t-z]*.dts*": true
+        "**/*.cmd": true,
+        "**/*.tmp": true,
+        "**/*.dtb": true,
+        "**/[a-r]*.dts*": true,
+        "**/s[0-t]*.dts*": true,
+        "**/[t-z]*.dts*": true,
 
-        "*/board/[0-e]*": true
-        "*/board/[g-r]*": true
-        "*/board/s[0-t]*": true
-        "*/board/s[v-z]*": true
-        "*/board/[t-z]*": true
+        "*/board/[0-e]*": true,
+        "*/board/[g-r]*": true,
+        "*/board/s[0-t]*": true,
+        "*/board/s[v-z]*": true,
+        "*/board/[t-z]*": true,
+
+        "*/configs/[0-p]*": true,
+        "*/configs/r*": true,
+        "*/configs/s[0-t]*": true,
+        "*/configs/s[v-z]*": true,
+        "*/configs/[t-z]*": true,
+    },
+    "search.exclude": {
+        "**/node_modules": true,
+        "**/bower_components": true,
+        "**/*.code-search": true,
+        "**/*.cmd": true,
+        "**/*.tmp": true,
+        "**/*.dtb": true,
+        "**/[a-r]*.dts*": true,
+        "**/s[0-t]*.dts*": true,
+        "**/[t-z]*.dts*": true,
+
+        "*/board/[0-e]*": true,
+        "*/board/[g-r]*": true,
+        "*/board/s[0-t]*": true,
+        "*/board/s[v-z]*": true,
+        "*/board/[t-z]*": true,
+
+        "*/configs/[0-p]*": true,
+        "*/configs/r*": true,
+        "*/configs/s[0-t]*": true,
+        "*/configs/s[v-z]*": true,
+        "*/configs/[t-z]*": true,
+
+
     }
+
 }
