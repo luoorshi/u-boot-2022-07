@@ -1,3 +1,7 @@
+Git配置
+git config --global user.name "NAME"
+git config --global user.email "EMAIL"
+ssh-keygen -t rsa -C "EMAIL"
 
 CROSS_COMPILE:
 https://releases.linaro.org/components/toolchain/binaries/6.3-2017.05/
