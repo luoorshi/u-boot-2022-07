@@ -1,0 +1,119 @@
+1、格式化U盘
+2、找到U盘名称（找之前先看U盘是否挂载，如挂载应该卸载）
+ls /dev/sd*
+3、使用fdisk将这张SD卡分为前200M、剩余空间两个分区
+使用命名
+sudo fdisk /dev/sdb
+其中sdb为U盘名称
+先使用d命令删除分区
+然后使用n命令新建分区
+
+最后使用w命令写入磁盘
+
+/***************************************/
+Command (m for help): n
+Partition type
+   p   primary (0 primary, 0 extended, 4 free)
+   e   extended (container for logical partitions)
+Select (default p): p
+Partition number (1-4, default 1): 
+First sector (2048-31457279, default 2048): 
+Last sector, +sectors or +size{K,M,G,T,P} (2048-31457279, default 31457279): +200M
+
+Created a new partition 1 of type 'Linux' and of size 200 MiB.
+
+Command (m for help): n
+Partition type
+   p   primary (1 primary, 0 extended, 3 free)
+   e   extended (container for logical partitions)
+Select (default p): 
+
+Using default response p.
+Partition number (2-4, default 2): 
+First sector (411648-31457279, default 411648): 
+Last sector, +sectors or +size{K,M,G,T,P} (411648-31457279, default 31457279): 
+
+Created a new partition 2 of type 'Linux' and of size 14.8 GiB.
+
+Command (m for help): w
+The partition table has been altered.
+Calling ioctl() to re-read partition table.
+Syncing disks.
+/***************************************/
+
+4、前者格式化为vfat格式，后者格式化为ext4
+
+sudo mkfs.vfat /dev/sdb1
+sudo mkfs.ext4 /dev/sdb2
+
+5、查看格式化是否成功
+
+lsblk -f
+
+出现
+/*************************/
+
+sdb                                                       
+├─sdb1 vfat          0E7C-653E                            
+└─sdb2 ext4          532c94c7-4d81-4b66-b096-1aa4efda24cc 
+
+/*************************************/
+
+6、将文件写入到内存卡
+
+ls /dev/sd*
+
+sudo dd if=u-boot-sunxi-with-spl.bin  of=/dev/sdb bs=1024 seek=8
+
+rk3399
+sudo dd if=u-boot-rockchip.bin of=/dev/sdb bs=1024 seek=8
+
+
+udisksctl unmount -b /dev/sdb1
+
+udisksctl power-off -b /dev/sdb
+
+安装工具
+sudo apt install u-boot-tools
+
+出现Could not get lock /var/lib/dpkg/lock-frontend - open 执行以下两句
+
+　　sudo rm /var/lib/dpkg/lock-frontend
+
+　　sudo rm /var/lib/dpkg/lock
+
+
+
+mkimage -A arm -O linux -T kernel -C none -a 0x46000000 -e 0x46000000 -n linux-5.3.5+ -d zImage uImage
+
+将
+mkimage -A arm -O linux -T kernel -C none -a 0x46000000 -e 0x46000000 -n linux-5.19.6 -d zImage uImage
+
+sudo cp uImage /dev/sdb1
+
+sudo cp sun8i-h3-orangepi-lite.dtb /dev/sdb1
+
+
+load mmc 0:1 0x43000000 sun8i-h3-orangepi-pc-plus.dtb
+
+load mmc 0:1 0x43000000 sun8i-h3-orangepi-lite.dtb
+
+load mmc 0:1 0x42000000 uImage
+
+
+bootm 0x42000000 - 0x43000000
+
+
+
+
+setenv bootargs console=ttyS0,115200 root=/dev/mmcblk0p2 rootwait panic=10
+setenv bootcmd 'load mmc 0:1 0x43000000 sun8i-h3-orangepi-lite.dtb; load mmc 0:1 0x42000000 uImage; bootm 0x42000000 - 0x43000000'
+saveenv
+
+
+修改readme，修改编译脚本，编译脚本名称
+
+
+添加稚晖君LINUX的config文件
+
+
