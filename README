@@ -47,3 +47,9 @@ make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j4
 
 将文件下载到内存卡内即可启动
 
+
+# V0.1
+修改编译脚本，下载代码后，先执行：./install_build_uboot_env.sh
+然后进入u-boot-2022.07 文件目录
+执行编译脚本：./build_uboot.sh
+
