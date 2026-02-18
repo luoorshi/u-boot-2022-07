@@ -348,11 +348,16 @@ int stdio_add_devices(void)
 		 *
 		 * So just probe all video devices now so that whichever one is
 		 * required will be available.
+		 *
+		 * Also probe video devices if VIDEO_LOGO is enabled, even when
+		 * CONFIG_SYS_CONSOLE_IS_IN_ENV is set, to ensure logo is displayed
+		 * early even if stdout doesn't include vidconsole.
 		 */
 		struct udevice *vdev;
 		int ret;
 
-		if (!IS_ENABLED(CONFIG_SYS_CONSOLE_IS_IN_ENV)) {
+		if (!IS_ENABLED(CONFIG_SYS_CONSOLE_IS_IN_ENV) ||
+		    IS_ENABLED(CONFIG_VIDEO_LOGO)) {
 			for (ret = uclass_first_device(UCLASS_VIDEO, &vdev);
 			     vdev;
 			     ret = uclass_next_device(&vdev))

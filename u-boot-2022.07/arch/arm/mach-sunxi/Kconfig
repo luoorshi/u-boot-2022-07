@@ -7,6 +7,18 @@ config SPL_LDSCRIPT
 config IDENT_STRING
 	default " Allwinner Technology"
 
+config SUNXI_CONSOLE_NO_VIDCONSOLE
+	bool "Disable console output on video screen"
+	depends on DM_VIDEO
+	default n
+	help
+	  When enabled, U-Boot console output will only go to serial port,
+	  not to the video screen (vidconsole). This is useful if you want
+	  to keep the screen clean and only see logs on serial port.
+
+	  If disabled (default), logs will appear on both serial port and
+	  video screen: stdout=serial,vidconsole
+
 config DRAM_SUN4I
 	bool
 	help

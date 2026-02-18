@@ -19,6 +19,7 @@
 #include <dm/device-internal.h>
 #include <linux/bitops.h>
 #include <linux/delay.h>
+#include <serial.h>
 #if CONFIG_IS_ENABLED(VIDEO_ST7789V_SUNXI_H3)
 #include "st7789v/st7789v_sunxi_h3.h"
 #endif
@@ -306,7 +307,8 @@ static int st7789v_set_madctl(struct udevice *dev, int rotation)
 	if (priv->bgr)
 		madctl |= MADCTL_BGR;
 
-	printf("Lois_debug: st7789v_set_madctl madctl=0x%02X\n", madctl);
+	/* 使用serial_printf输出避免触发vidconsole的递归调用 */
+	serial_printf("Lois_debug: st7789v_set_madctl madctl=0x%02X\n", madctl);
 	return st7789v_write_cmd_param(dev, MIPI_DCS_SET_ADDRESS_MODE, &madctl, 1);
 }
 
@@ -445,6 +447,8 @@ static int st7789v_sync(struct udevice *vid)
 	unsigned int y;
 	/* 哨兵值：确保首次 sync 必定推送，避免全零 fb 时一直 skip */
 	static u32 last_fb_sum = 0xFFFFFFFF;
+	/* 递归保护：防止在sync过程中再次调用sync导致的无限循环 */
+	static bool syncing = false;
 	u32 fb_sum;
 	u16 log_width, log_height;
 	u16 col_start, col_end, row_start, row_end;
@@ -453,10 +457,16 @@ static int st7789v_sync(struct udevice *vid)
 	if (!uc_priv || !priv || !priv->dev)
 		return -EINVAL;
 
+	/* 如果正在sync中，直接返回避免递归 */
+	if (syncing)
+		return 0;
+
+	syncing = true;
 	dev = priv->dev;
 	
-	printf("Lois_debug: st7789v_sync rot=%d, xsize=%d, ysize=%d\n",
-	       uc_priv->rot, uc_priv->xsize, uc_priv->ysize);
+	/* 使用serial_printf输出避免触发vidconsole的递归调用 */
+	serial_printf("Lois_debug: st7789v_sync rot=%d, xsize=%d, ysize=%d\n",
+		      uc_priv->rot, uc_priv->xsize, uc_priv->ysize);
 
 	/*
 	 * SPI 刷屏按 framebuffer 的真实布局发送：
@@ -468,21 +478,28 @@ static int st7789v_sync(struct udevice *vid)
 	line_bytes = (size_t)uc_priv->line_length;
 
 	if (!priv->inited) {
+		serial_printf("Lois_debug: st7789v_sync not inited, deferred init\n");
 		ret = st7789v_deferred_init(vid);
 		if (ret)
+		{
+			serial_printf("Lois_debug: st7789v_deferred_init failed: %d\n", ret);
+			syncing = false;
 			return ret;
+		}
 	}
 	fb_sum = st7789v_calc_fb_checksum(uc_priv);
 	if (fb_sum == last_fb_sum) {
-		printf("Lois_debug: st7789v_sync checksum not changed, skip sync\n");
+		serial_printf("Lois_debug: st7789v_sync checksum not changed, skip sync\n");
+		syncing = false;
 		return 0;
 	}
-	printf("Lois_debug: st7789v_sync checksum changed, sync framebuffer\n");
+	serial_printf("Lois_debug: st7789v_sync checksum changed, sync framebuffer\n");
 	last_fb_sum = fb_sum;
 
 	ret = dm_spi_claim_bus(dev);
 	if (ret) {
-		dev_err(dev, "Failed to claim SPI bus: %d\n", ret);
+		serial_printf("Lois_debug: st7789v_sync Failed to claim SPI bus: %d\n", ret);
+		syncing = false;
 		return ret;
 	}
 
@@ -500,8 +517,8 @@ static int st7789v_sync(struct udevice *vid)
 	if (ret)
 		goto release;
 
-	printf("Lois_debug: st7789v_sync log_width=%d, log_height=%d, line_bytes=%d\n",
-	       log_width, log_height, (int)line_bytes);
+	serial_printf("Lois_debug: st7789v_sync log_width=%d, log_height=%d, line_bytes=%d\n",
+		      log_width, log_height, (int)line_bytes);
 
 	/* 设置 DC 一次，然后连续发送多行数据 */
 	ret = st7789v_set_dc(dev, 1);
@@ -520,6 +537,7 @@ static int st7789v_sync(struct udevice *vid)
 
 release:
 	dm_spi_release_bus(dev);
+	syncing = false;
 	return ret;
 }
 

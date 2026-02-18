@@ -336,9 +336,17 @@
 #endif
 
 #ifdef CONFIG_DM_VIDEO
+#ifdef CONFIG_SUNXI_CONSOLE_NO_VIDCONSOLE
+/* 如果定义了 CONFIG_SUNXI_CONSOLE_NO_VIDCONSOLE，则只在串口输出，不在屏幕输出 */
+#define CONSOLE_STDOUT_SETTINGS \
+	"stdout=serial\0" \
+	"stderr=serial\0"
+#else
+/* 默认行为：同时在串口和屏幕输出 */
 #define CONSOLE_STDOUT_SETTINGS \
 	"stdout=serial,vidconsole\0" \
 	"stderr=serial,vidconsole\0"
+#endif
 #else
 #define CONSOLE_STDOUT_SETTINGS \
 	"stdout=serial\0" \
