@@ -25,6 +25,15 @@ config VIDEO_LOGO
 	  tools/logos/u-boot_logo.bmp and looks best when the display has a
 	  black background.
 
+config VIDEO_LOGO_NAME
+	string "Custom logo name"
+	depends on VIDEO_LOGO
+	default ""
+	help
+	  Specify a custom logo name to use instead of the board-specific logo.
+	  The logo file should be located at tools/logos/<name>.bmp.
+	  If not set, the build system will use $(BOARD).bmp or denx.bmp as fallback.
+
 config BACKLIGHT
 	bool "Enable panel backlight uclass support"
 	depends on DM_VIDEO
