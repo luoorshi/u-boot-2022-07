@@ -20,6 +20,17 @@ obj-$(CONFIG_SIMPLE_PANEL) += simple_panel.o
 
 obj-$(CONFIG_VIDEO_LOGO) += u_boot_logo.o
 
+# Use board-specific logo (e.g. tools/logos/Lois.bmp) when CONFIG_SYS_BOARD is set
+ifdef CONFIG_VIDEO_LOGO
+LOGO_SRC := $(srctree)/tools/logos/$(BOARD).bmp
+ifeq ($(wildcard $(LOGO_SRC)),)
+LOGO_SRC := $(srctree)/tools/logos/denx.bmp
+endif
+$(obj)/u_boot_logo.bmp: $(LOGO_SRC)
+	$(Q)mkdir -p $(dir $@) && cp $< $@
+$(obj)/u_boot_logo.o: $(obj)/u_boot_logo.bmp
+endif
+
 endif
 
 obj-${CONFIG_EXYNOS_FB} += exynos/
@@ -69,6 +80,8 @@ obj-$(CONFIG_VIDEO_TEGRA20) += tegra.o
 obj-$(CONFIG_VIDEO_VCXK) += bus_vcxk.o
 obj-$(CONFIG_VIDEO_VESA) += vesa.o
 obj-$(CONFIG_VIDEO_SEPS525) += seps525.o
+obj-$(CONFIG_VIDEO_ST7789V) += st7789v.o
+obj-$(CONFIG_VIDEO_ST7789V) += st7789v/
 obj-$(CONFIG_VIDEO_ZYNQMP_DPSUB) += zynqmp_dpsub.o
 
 obj-y += bridge/

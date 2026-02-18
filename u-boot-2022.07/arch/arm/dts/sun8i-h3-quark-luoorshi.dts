@@ -100,8 +100,9 @@
 	};
 };
 
+/* Disable DE/HDMI so U-Boot uses SPI ST7789V for console (no LCD/HDMI on board) */
 &de {
-	status = "okay";
+	status = "disabled";
 };
 
 &ehci0 {
@@ -109,7 +110,7 @@
 };
 
 &hdmi {
-	status = "okay";
+	status = "disabled";
 };
 
 &hdmi_out {
@@ -164,6 +165,24 @@
 
 &spi0 {
 	status = "okay";
+	u-boot,dm-pre-reloc;
+
+	display@0 {
+		compatible = "sitronix,st7789v";
+		reg = <0>;
+		spi-max-frequency = <32000000>;
+		/* PA1=UART2_RX (reset), PA0=UART2_TX (dc); avoid PA4/PA5 (UART0 console) */
+		reset-gpios = <&pio 0 1 GPIO_ACTIVE_LOW>;
+		dc-gpios = <&pio 0 0 GPIO_ACTIVE_HIGH>;
+		/* Display offset: X direction 0x34, Y direction 0x28 */
+		col-offset = <0x34>;
+		row-offset = <0x28>;
+		/* BGR color order */
+		//rotation = <90>;
+		bgr = <1>;
+		//bgr = <0>;
+		u-boot,dm-pre-reloc;
+	};
 };
 
 &usbphy {

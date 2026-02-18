@@ -53,5 +53,5 @@ make clean
 # make orangepi_zero_plus2_h3_defconfig ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf-
 make quark-luoorshi-h3_defconfig ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf-
 # make V=1 ARCH=arm CROSS_COMPILE=arm-linux- -j4
-make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j4
+make ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- -j4 2>&1 | tee build.log
 

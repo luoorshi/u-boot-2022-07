@@ -682,6 +682,24 @@ config VIDEO_SEPS525
 	  Enable support for the Syncoam PM-OLED display driver (RGB 160x128).
 	  Currently driver is supporting only SPI interface.
 
+config VIDEO_ST7789V
+	bool "Enable ST7789V SPI LCD panel support"
+	depends on DM_VIDEO && DM_SPI && DM_GPIO
+	help
+	  Enable support for the Sitronix ST7789V LCD controller (240x320 RGB565)
+	  over SPI. Uses reset-gpios and dc-gpios from device tree. SoC-agnostic;
+	  works on any platform with DM SPI and GPIO (e.g. Allwinner H3/H5, others).
+
+config VIDEO_ST7789V_SUNXI_H3
+	bool "Use Allwinner H3 PIO registers for ST7789V reset/dc GPIO"
+	depends on VIDEO_ST7789V && MACH_SUN8I_H3
+	default y if MACH_SUN8I_H3
+	help
+	  On Allwinner H3, configure PA4 (reset) and PA5 (dc) via direct PIO
+	  register access instead of DM GPIO. Avoids init-order hangs when
+	  pinctrl/GPIO are probed during stdio. Requires reset-gpios=<&pio 0 4 ...>
+	  and dc-gpios=<&pio 0 5 ...> in the device tree.
+
 config VIDEO_ZYNQMP_DPSUB
 	bool "Enable video support for ZynqMP Display Port"
 	depends on DM_VIDEO && ZYNQMP_POWER_DOMAIN
