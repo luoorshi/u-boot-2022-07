@@ -178,7 +178,7 @@
 		col-offset = <0x34>;
 		row-offset = <0x28>;
 		/* BGR color order */
-		//rotation = <90>;
+		rotation = <270>;
 		bgr = <1>;
 		//bgr = <0>;
 		u-boot,dm-pre-reloc;

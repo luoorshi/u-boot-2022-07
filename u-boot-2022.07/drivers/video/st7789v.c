@@ -118,13 +118,17 @@ static const struct st7789v_init_cmd st7789v_init_cmds[] = {
 };
 
 static int st7789v_set_dc(struct udevice *dev, int value);
+static int st7789v_set_window(struct udevice *dev, u16 col_start, u16 col_end,
+			      u16 row_start, u16 row_end);
 
 static void st7789v_set_reset(struct udevice *dev, int value)
 {
-	if (IS_ENABLED(CONFIG_VIDEO_ST7789V_SUNXI_H3))
+	if (IS_ENABLED(CONFIG_VIDEO_ST7789V_SUNXI_H3)) {
 		st7789v_sunxi_h3_gpio_set_value(0, value);
-	else
-		dm_gpio_set_value(&((struct st7789v_priv *)dev_get_priv(dev))->reset_gpio, value);
+	} else {
+		struct st7789v_priv *priv = dev_get_priv(dev);
+		dm_gpio_set_value(&priv->reset_gpio, value);
+	}
 }
 
 static int st7789v_set_dc(struct udevice *dev, int value)
@@ -140,11 +144,7 @@ static int st7789v_set_dc(struct udevice *dev, int value)
 
 static int st7789v_write_cmd(struct udevice *dev, u8 cmd)
 {
-	struct st7789v_priv *priv = dev_get_priv(dev);
 	int ret;
-
-	if (!priv)
-		return -EINVAL;
 
 	ret = st7789v_set_dc(dev, 0);
 	if (ret)
@@ -155,11 +155,7 @@ static int st7789v_write_cmd(struct udevice *dev, u8 cmd)
 
 static int st7789v_write_data(struct udevice *dev, const u8 *data, size_t len)
 {
-	struct st7789v_priv *priv = dev_get_priv(dev);
 	int ret;
-
-	if (!priv)
-		return -EINVAL;
 
 	if (!len)
 		return 0;
@@ -235,32 +231,27 @@ static int st7789v_init_display(struct udevice *dev)
 static int st7789v_clear_screen(struct udevice *dev)
 {
 	struct st7789v_priv *priv = dev_get_priv(dev);
-	u8 col_buf[4], row_buf[4];
+	struct video_priv *uc_priv = dev_get_uclass_priv(dev);
 	u16 *black_buffer;
 	int ret, i;
 	const u16 black_pixel = 0x0000;
+	u16 log_width, log_height;
+	u16 col_start, col_end, row_start, row_end;
 
-	col_buf[0] = priv->col_offset >> 8;
-	col_buf[1] = priv->col_offset & 0xFF;
-	col_buf[2] = (priv->col_offset + ST7789V_WIDTH - 1) >> 8;
-	col_buf[3] = (priv->col_offset + ST7789V_WIDTH - 1) & 0xFF;
+	/*
+	 * 这里使用 video uclass 看到的逻辑宽高。
+	 * probe() 会在 rot=90/270 时交换 xsize/ysize，从而保证
+	 * framebuffer 的 line_length/stride 与后续刷屏一致。
+	 */
+	log_width = uc_priv->xsize;
+	log_height = uc_priv->ysize;
 
-	row_buf[0] = priv->row_offset >> 8;
-	row_buf[1] = priv->row_offset & 0xFF;
-	row_buf[2] = (priv->row_offset + ST7789V_HEIGHT - 1) >> 8;
-	row_buf[3] = (priv->row_offset + ST7789V_HEIGHT - 1) & 0xFF;
+	col_start = priv->col_offset;
+	col_end = priv->col_offset + log_width - 1;
+	row_start = priv->row_offset;
+	row_end = priv->row_offset + log_height - 1;
 
-	ret = st7789v_write_cmd(dev, MIPI_DCS_SET_COLUMN_ADDRESS);
-	if (ret)
-		return ret;
-	ret = st7789v_write_data(dev, col_buf, 4);
-	if (ret)
-		return ret;
-
-	ret = st7789v_write_cmd(dev, MIPI_DCS_SET_PAGE_ADDRESS);
-	if (ret)
-		return ret;
-	ret = st7789v_write_data(dev, row_buf, 4);
+	ret = st7789v_set_window(dev, col_start, col_end, row_start, row_end);
 	if (ret)
 		return ret;
 
@@ -268,29 +259,29 @@ static int st7789v_clear_screen(struct udevice *dev)
 	if (ret)
 		return ret;
 
-	black_buffer = malloc(ST7789V_WIDTH * sizeof(u16));
+	black_buffer = malloc(log_width * sizeof(u16));
 	if (!black_buffer)
 		return -ENOMEM;
 
-	for (i = 0; i < ST7789V_WIDTH; i++)
+	for (i = 0; i < log_width; i++)
 		black_buffer[i] = black_pixel;
 
-	for (i = 0; i < ST7789V_HEIGHT; i++) {
-		ret = st7789v_set_dc(dev, 1);
-		if (ret) {
-			free(black_buffer);
-			return ret;
-		}
-		ret = dm_spi_xfer(dev, ST7789V_WIDTH * 16, black_buffer, NULL,
-				  SPI_XFER_BEGIN | SPI_XFER_END);
-		if (ret) {
-			free(black_buffer);
-			return ret;
-		}
+	/* 设置 DC 一次，然后连续发送多行数据 */
+	ret = st7789v_set_dc(dev, 1);
+	if (ret) {
+		free(black_buffer);
+		return ret;
+	}
+
+	for (i = 0; i < log_height; i++) {
+		ret = dm_spi_xfer(dev, log_width * 16, black_buffer, NULL,
+			  SPI_XFER_BEGIN | SPI_XFER_END);
+		if (ret)
+			break;
 	}
 
 	free(black_buffer);
-	return 0;
+	return ret;
 }
 
 static int st7789v_set_madctl(struct udevice *dev, int rotation)
@@ -312,19 +303,55 @@ static int st7789v_set_madctl(struct udevice *dev, int rotation)
 		break;
 	}
 
-	if (priv && priv->bgr)
+	if (priv->bgr)
 		madctl |= MADCTL_BGR;
 
 	printf("Lois_debug: st7789v_set_madctl madctl=0x%02X\n", madctl);
 	return st7789v_write_cmd_param(dev, MIPI_DCS_SET_ADDRESS_MODE, &madctl, 1);
 }
 
+/* 设置显示窗口地址（列和行） */
+static int st7789v_set_window(struct udevice *dev, u16 col_start, u16 col_end,
+			       u16 row_start, u16 row_end)
+{
+	u8 col_buf[4], row_buf[4];
+	int ret;
+
+	col_buf[0] = col_start >> 8;
+	col_buf[1] = col_start & 0xFF;
+	col_buf[2] = col_end >> 8;
+	col_buf[3] = col_end & 0xFF;
+
+	row_buf[0] = row_start >> 8;
+	row_buf[1] = row_start & 0xFF;
+	row_buf[2] = row_end >> 8;
+	row_buf[3] = row_end & 0xFF;
+
+	ret = st7789v_write_cmd(dev, MIPI_DCS_SET_COLUMN_ADDRESS);
+	if (ret)
+		return ret;
+	ret = st7789v_write_data(dev, col_buf, 4);
+	if (ret)
+		return ret;
+
+	ret = st7789v_write_cmd(dev, MIPI_DCS_SET_PAGE_ADDRESS);
+	if (ret)
+		return ret;
+	return st7789v_write_data(dev, row_buf, 4);
+}
+
 static u32 st7789v_calc_fb_checksum(struct video_priv *uc_priv)
 {
-	ulong size = (ulong)uc_priv->line_length * uc_priv->ysize;
+	ulong size;
 	ulong i;
 	u32 sum = 0;
 	const u8 *fb = (const u8 *)uc_priv->fb;
+
+	/*
+	 * checksum 必须覆盖整个 framebuffer。
+	 * rot=90/270 时 xsize/ysize 在 probe() 已交换，因此这里无需再分支。
+	 */
+	size = (ulong)uc_priv->line_length * uc_priv->ysize;
 
 	for (i = 0; i + ST7789V_FB_SUM_BLOCK_SIZE <= size; i += ST7789V_FB_SUM_BLOCK_SIZE)
 		sum += *(const u32 *)(fb + i);
@@ -413,28 +440,45 @@ static int st7789v_sync(struct udevice *vid)
 	struct video_priv *uc_priv = dev_get_uclass_priv(vid);
 	struct st7789v_priv *priv = dev_get_priv(vid);
 	struct udevice *dev;
-	u8 col_buf[4], row_buf[4];
 	size_t line_bytes;
 	int ret;
 	unsigned int y;
-	static u32 last_fb_sum;
-
+	/* 哨兵值：确保首次 sync 必定推送，避免全零 fb 时一直 skip */
+	static u32 last_fb_sum = 0xFFFFFFFF;
+	u32 fb_sum;
+	u16 log_width, log_height;
+	u16 col_start, col_end, row_start, row_end;
+	const u8 *fb_ptr;
 
 	if (!uc_priv || !priv || !priv->dev)
 		return -EINVAL;
 
 	dev = priv->dev;
-	line_bytes = (size_t)uc_priv->xsize * 2;
+	
+	printf("Lois_debug: st7789v_sync rot=%d, xsize=%d, ysize=%d\n",
+	       uc_priv->rot, uc_priv->xsize, uc_priv->ysize);
+
+	/*
+	 * SPI 刷屏按 framebuffer 的真实布局发送：
+	 * - log_width/log_height 就是 video uclass 的 xsize/ysize
+	 * - 每行字节数使用 line_length（避免与 padding/stride 不一致）
+	 */
+	log_width = uc_priv->xsize;
+	log_height = uc_priv->ysize;
+	line_bytes = (size_t)uc_priv->line_length;
 
 	if (!priv->inited) {
 		ret = st7789v_deferred_init(vid);
 		if (ret)
 			return ret;
 	}
-
-	if (st7789v_calc_fb_checksum(uc_priv) == last_fb_sum)
+	fb_sum = st7789v_calc_fb_checksum(uc_priv);
+	if (fb_sum == last_fb_sum) {
+		printf("Lois_debug: st7789v_sync checksum not changed, skip sync\n");
 		return 0;
-	last_fb_sum = st7789v_calc_fb_checksum(uc_priv);
+	}
+	printf("Lois_debug: st7789v_sync checksum changed, sync framebuffer\n");
+	last_fb_sum = fb_sum;
 
 	ret = dm_spi_claim_bus(dev);
 	if (ret) {
@@ -442,31 +486,36 @@ static int st7789v_sync(struct udevice *vid)
 		return ret;
 	}
 
-	col_buf[0] = priv->col_offset >> 8;
-	col_buf[1] = priv->col_offset & 0xFF;
-	col_buf[2] = (priv->col_offset + uc_priv->xsize - 1) >> 8;
-	col_buf[3] = (priv->col_offset + uc_priv->xsize - 1) & 0xFF;
-	st7789v_write_cmd(dev, MIPI_DCS_SET_COLUMN_ADDRESS);
-	st7789v_write_data(dev, col_buf, 4);
+	/* 根据逻辑宽高设置窗口地址 */
+	col_start = priv->col_offset;
+	col_end = priv->col_offset + log_width - 1;
+	row_start = priv->row_offset;
+	row_end = priv->row_offset + log_height - 1;
 
-	row_buf[0] = priv->row_offset >> 8;
-	row_buf[1] = priv->row_offset & 0xFF;
-	row_buf[2] = (priv->row_offset + uc_priv->ysize - 1) >> 8;
-	row_buf[3] = (priv->row_offset + uc_priv->ysize - 1) & 0xFF;
-	st7789v_write_cmd(dev, MIPI_DCS_SET_PAGE_ADDRESS);
-	st7789v_write_data(dev, row_buf, 4);
+	ret = st7789v_set_window(dev, col_start, col_end, row_start, row_end);
+	if (ret)
+		goto release;
 
-	st7789v_write_cmd(dev, MIPI_DCS_MEMORY_WRITE);
+	ret = st7789v_write_cmd(dev, MIPI_DCS_MEMORY_WRITE);
+	if (ret)
+		goto release;
 
-	for (y = 0; y < uc_priv->ysize; y++) {
-		ret = st7789v_set_dc(dev, 1);
-		if (ret)
-			goto release;
+	printf("Lois_debug: st7789v_sync log_width=%d, log_height=%d, line_bytes=%d\n",
+	       log_width, log_height, (int)line_bytes);
+
+	/* 设置 DC 一次，然后连续发送多行数据 */
+	ret = st7789v_set_dc(dev, 1);
+	if (ret)
+		goto release;
+
+	fb_ptr = (const u8 *)uc_priv->fb;
+	for (y = 0; y < log_height; y++) {
+		/* 逐行按 stride 发送 framebuffer */
 		ret = dm_spi_xfer(dev, line_bytes * 8,
-				  (void *)(uc_priv->fb + y * uc_priv->line_length),
+				  (void *)(fb_ptr + y * line_bytes),
 				  NULL, SPI_XFER_BEGIN | SPI_XFER_END);
 		if (ret)
-			goto release;
+			break;
 	}
 
 release:
@@ -504,12 +553,32 @@ static int st7789v_probe(struct udevice *dev)
 	priv->dev = dev;
 
 	uc_priv->bpix = VIDEO_BPP16;
-	uc_priv->xsize = ST7789V_WIDTH;
-	uc_priv->ysize = ST7789V_HEIGHT;
 	uc_priv->rot = st7789v_parse_rotation(dev);
+
+	/*
+	 * 统一旋转策略：
+	 * - 面板硬件通过 MADCTL 做旋转（deferred_init 里调用 set_madctl）
+	 * - framebuffer 的逻辑分辨率在这里与旋转保持一致，保证 line_length/stride 正确
+	 */
+	if (uc_priv->rot == 1 || uc_priv->rot == 3) {
+		uc_priv->xsize = ST7789V_HEIGHT;
+		uc_priv->ysize = ST7789V_WIDTH;
+	} else {
+		uc_priv->xsize = ST7789V_WIDTH;
+		uc_priv->ysize = ST7789V_HEIGHT;
+	}
 
 	priv->col_offset = dev_read_u32_default(dev, "col-offset", 0);
 	priv->row_offset = dev_read_u32_default(dev, "row-offset", 0);
+	
+	/* 根据旋转角度交换 col-offset 和 row-offset */
+	/* 90度(rot=1)或270度(rot=3)旋转时，列和行需要交换 */
+	if (uc_priv->rot == 1 || uc_priv->rot == 3) {
+		u16 temp = priv->col_offset;
+		priv->col_offset = priv->row_offset;
+		priv->row_offset = temp;
+	}
+	
 	priv->bgr = dev_read_bool(dev, "bgr");
 
 #if CONFIG_IS_ENABLED(VIDEO_ST7789V_SUNXI_H3)
